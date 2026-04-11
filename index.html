@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Simulador de Economia - Conta de Energia com Solar v3</title>
+  <title>Simples Simulador de Economia de Conta de Energia com Solar (Parâmetros Equatorial MA - São Luís)</title>
   <style>
     :root {
       --bg: #f4f7fb;
@@ -153,12 +153,14 @@
 <body>
   <div class="container">
     <div class="card">
-      <h1>Simulador de Economia de Energia Solar v3</h1>
+      <h1>Simples Simulador de Economia de Conta de Energia com geração Solar (Parâmetros Equatorial MA - São Luís)</h1>
       <div class="subtitle">
-        Nesta versão, a lógica base é:
+       Trta-se de um simples simulador para entendimento da Conta de Energia com geração própria, usando os parâmetros da Equatorial MA. 
+	   A lógica base é:
         <strong>autoconsumo = geração total - energia injetada</strong> e
         <strong>consumo total da casa = consumo da rede + autoconsumo</strong>.
         Assim, você informa os dados mais concretos da geração e da fatura, e o simulador calcula o restante. A conta sem solar passa a refletir todo o consumo da casa.
+		<strong>Altere os parâmetros em azul (inicialmente), mas todos os outros estão disponíveis para alteração e simulação, ao clicar em CALCULAR o sistema tenta gerar os valores com e sem solar, bem como percentuais de economia.</strong>
       </div>
 
       <div class="grid">
