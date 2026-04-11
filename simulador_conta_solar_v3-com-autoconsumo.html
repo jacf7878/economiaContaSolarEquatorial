@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Economia - Conta de Energia com Solar v3</title>
+  <style>
+    :root {
+      --bg: #f4f7fb;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --border: #d1d5db;
+      --accent: #2563eb;
+      --ok: #15803d;
+      --warn: #b45309;
+      --soft: #eef2ff;
+      --highlight-bg: #ecfeff;
+      --highlight-border: #22d3ee;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      padding: 24px;
+    }
+    .container { max-width: 1120px; margin: 0 auto; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+      margin-bottom: 18px;
+    }
+    h1, h2, h3 { margin-top: 0; }
+    .subtitle {
+      color: var(--muted);
+      margin-top: -6px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+    @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+    label { display: block; font-weight: bold; margin-bottom: 6px; }
+    .hint { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.4; }
+    .primary-field {
+      background: var(--highlight-bg);
+      border: 2px solid var(--highlight-border);
+      border-radius: 12px;
+      padding: 10px;
+    }
+    .primary-field input {
+      border-color: #06b6d4;
+      background: #f0fdfa;
+      font-weight: bold;
+    }
+    input {
+      width: 100%;
+      padding: 11px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-size: 15px;
+      outline: none;
+    }
+    input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+    }
+    input[readonly] {
+      background: #f9fafb;
+      color: #374151;
+    }
+    .buttons {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 18px;
+    }
+    button {
+      border: 0;
+      border-radius: 10px;
+      padding: 12px 16px;
+      font-size: 15px;
+      cursor: pointer;
+    }
+    .primary { background: var(--accent); color: white; }
+    .secondary { background: #e5e7eb; color: #111827; }
+
+    .results {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+    }
+    @media (max-width: 900px) { .results { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 560px) { .results { grid-template-columns: 1fr; } }
+
+    .metric {
+      background: var(--soft);
+      border: 1px solid #c7d2fe;
+      border-radius: 12px;
+      padding: 14px;
+    }
+    .metric .label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .metric .value {
+      font-size: 24px;
+      font-weight: bold;
+    }
+    .metric .detail {
+      margin-top: 8px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+      border-top: 1px dashed #cbd5e1;
+      padding-top: 8px;
+      white-space: normal;
+    }
+    .green .value { color: var(--ok); }
+    .amber .value { color: var(--warn); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f9fafb; }
+    .footer { font-size: 13px; color: var(--muted); margin-top: 8px; line-height: 1.5; }
+    .okbox {
+      background: #ecfdf5;
+      border: 1px solid #bbf7d0;
+      padding: 12px;
+      border-radius: 12px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>Simulador de Economia de Energia Solar v3</h1>
+      <div class="subtitle">
+        Nesta versão, a lógica base é:
+        <strong>autoconsumo = geração total - energia injetada</strong> e
+        <strong>consumo total da casa = consumo da rede + autoconsumo</strong>.
+        Assim, você informa os dados mais concretos da geração e da fatura, e o simulador calcula o restante. A conta sem solar passa a refletir todo o consumo da casa.
+      </div>
+
+      <div class="grid">
+        <div class="primary-field">
+          <label for="geracaoTotalKwh">⭐ Geração total (kWh)</label>
+          <input id="geracaoTotalKwh" type="number" step="0.01" value="700" />
+          <div class="hint">Energia total produzida pelo sistema no período.</div>
+        </div>
+
+        <div class="primary-field">
+          <label for="injetadaKwh">⭐ Energia injetada (kWh)</label>
+          <input id="injetadaKwh" type="number" step="0.01" value="521" />
+          <div class="hint">Energia efetivamente injetada na rede e usada na compensação.</div>
+        </div>
+
+        <div>
+          <label for="autoconsumoKwh">Autoconsumo (kWh)</label>
+          <input id="autoconsumoKwh" type="number" step="0.01" value="179" readonly />
+          <div class="hint">Calculado automaticamente como geração total - energia injetada.</div>
+        </div>
+
+        <div class="primary-field">
+          <label for="consumoRedeKwh">⭐ Consumo da rede / compensado na fatura (kWh)</label>
+          <input id="consumoRedeKwh" type="number" step="0.01" value="521" />
+          <div class="hint">Energia que aparece como consumo/compensação na conta.</div>
+        </div>
+
+        <div>
+          <label for="consumoTotalCasaKwh">Consumo total da casa (kWh)</label>
+          <input id="consumoTotalCasaKwh" type="number" step="0.01" value="700" readonly />
+          <div class="hint">Calculado como consumo da rede + autoconsumo.</div>
+        </div>
+
+        <div>
+          <label for="tarifaCheia">Tarifa cheia da energia (R$/kWh)</label>
+          <input id="tarifaCheia" type="number" step="0.0001" value="0.8381" />
+          <div class="hint">Usada para valorar energia da rede e autoconsumo.</div>
+        </div>
+
+        <div>
+          <label for="tarifaGd2">Tarifa GD2 (R$/kWh injetado)</label>
+          <input id="tarifaGd2" type="number" step="0.0001" value="0.2741" />
+          <div class="hint">Ex.: 142,82 ÷ 521 = 0,2741</div>
+        </div>
+
+        <div>
+          <label for="fatorBenefBruto">Fator benefício bruto SCEE</label>
+          <input id="fatorBenefBruto" type="number" step="0.0001" value="0.5506" />
+          <div class="hint">Ex.: 286,88 ÷ 521 = 0,5506</div>
+        </div>
+
+        <div>
+          <label for="fatorBenefLiquido">Fator benefício líquido SCEE</label>
+          <input id="fatorBenefLiquido" type="number" step="0.0001" value="-0.4016" />
+          <div class="hint">Será convertido automaticamente para negativo.</div>
+        </div>
+
+        <div>
+          <label for="cip">CIP / Iluminação Pública (R$)</label>
+          <input id="cip" type="number" step="0.01" value="28.67" />
+          <div class="hint">Valor fixo não compensável.</div>
+        </div>
+
+        <div>
+          <label for="outros">Outros itens da fatura (R$)</label>
+          <input id="outros" type="number" step="0.01" value="0" />
+          <div class="hint">Bandeiras, multas, saldo anterior, parcelamentos etc.</div>
+        </div>
+
+        <div>
+          <label for="valorPagoInformado">Valor final pago com solar (opcional)</label>
+          <input id="valorPagoInformado" type="number" step="0.01" value="249.14" />
+          <div class="hint">Usado para comparar a estimativa com a fatura real.</div>
+        </div>
+      </div>
+
+      <div class="buttons">
+        <button class="primary" onclick="calcular()">Calcular</button>
+        <button class="secondary" onclick="limparCampos()">Limpar</button>
+        <button class="secondary" onclick="carregarExemplo()">Carregar exemplo</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Resultado</h2>
+
+      <div class="results">
+        <div class="metric">
+          <div class="label">Conta sem solar</div>
+          <div class="value" id="semSolar">R$ 0,00</div>
+          <div class="detail" id="semSolarDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric amber">
+          <div class="label">Conta estimada com solar</div>
+          <div class="value" id="comSolar">R$ 0,00</div>
+          <div class="detail" id="comSolarDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric green">
+          <div class="label">Economia em reais</div>
+          <div class="value" id="economiaReais">R$ 0,00</div>
+          <div class="detail" id="economiaReaisDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric green">
+          <div class="label">Economia percentual</div>
+          <div class="value" id="economiaPerc">0,00%</div>
+          <div class="detail" id="economiaPercDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric">
+          <div class="label">Conta bruta total da casa</div>
+          <div class="value" id="contaBrutaTotal">R$ 0,00</div>
+          <div class="detail" id="contaBrutaTotalDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric green">
+          <div class="label">Economia sem CIP</div>
+          <div class="value" id="economiaSemCipReais">R$ 0,00</div>
+          <div class="detail" id="economiaSemCipReaisDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+        <div class="metric green">
+          <div class="label">Economia percentual sem CIP</div>
+          <div class="value" id="economiaSemCipPerc">0,00%</div>
+          <div class="detail" id="economiaSemCipPercDetail">Fórmula e parâmetros aparecerão aqui.</div>
+        </div>
+      </div>
+
+      <h3 style="margin-top: 22px;">Itens calculados automaticamente</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Item</th>
+            <th>Fórmula</th>
+            <th>Valor</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaItens"></tbody>
+      </table>
+
+      <h3 style="margin-top: 22px;">Memória de cálculo</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Etapa</th>
+            <th>Fórmula</th>
+            <th>Resultado</th>
+          </tr>
+        </thead>
+        <tbody id="tabelaCalculo"></tbody>
+      </table>
+
+      <div class="okbox" id="comparacao" style="margin-top: 16px;">
+        Preencha os campos e clique em <strong>Calcular</strong>.
+      </div>
+
+      <div class="footer">
+        Nesta modelagem, a conta bruta total tenta medir o valor econômico total da energia consumida na casa:
+        <strong>consumo total da casa × tarifa cheia + CIP + outros</strong>.
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function moeda(valor) {
+      return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    }
+
+    function numero(id) {
+      const valor = parseFloat(document.getElementById(id).value);
+      return isNaN(valor) ? 0 : valor;
+    }
+
+    function numeroNegativo(id) {
+      const valor = parseFloat(document.getElementById(id).value);
+      if (isNaN(valor)) return 0;
+      const negativo = -Math.abs(valor);
+      document.getElementById(id).value = negativo.toFixed(4);
+      return negativo;
+    }
+
+    function setText(id, texto) {
+      document.getElementById(id).textContent = texto;
+    }
+
+    function setHTML(id, texto) {
+      document.getElementById(id).innerHTML = texto;
+    }
+
+    function addLinha(tbody, etapa, formula, resultado) {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${etapa}</td>
+        <td>${formula}</td>
+        <td>${resultado}</td>
+      `;
+      tbody.appendChild(tr);
+    }
+
+    function atualizarCamposDerivados() {
+      const geracaoTotalKwh = numero('geracaoTotalKwh');
+      const injetadaKwh = numero('injetadaKwh');
+      const consumoRedeKwh = numero('consumoRedeKwh');
+
+      const autoconsumoKwh = Math.max(0, geracaoTotalKwh - injetadaKwh);
+      const consumoTotalCasaKwh = consumoRedeKwh + autoconsumoKwh;
+
+      document.getElementById('autoconsumoKwh').value = autoconsumoKwh.toFixed(2);
+      document.getElementById('consumoTotalCasaKwh').value = consumoTotalCasaKwh.toFixed(2);
+    }
+
+    function calcular() {
+      atualizarCamposDerivados();
+
+      const geracaoTotalKwh = numero('geracaoTotalKwh');
+      const injetadaKwh = numero('injetadaKwh');
+      const autoconsumoKwh = numero('autoconsumoKwh');
+      const consumoRedeKwh = numero('consumoRedeKwh');
+      const consumoTotalCasaKwh = numero('consumoTotalCasaKwh');
+      const tarifaCheia = numero('tarifaCheia');
+      const tarifaGd2 = numero('tarifaGd2');
+      const fatorBenefBruto = numero('fatorBenefBruto');
+      const fatorBenefLiquido = numeroNegativo('fatorBenefLiquido');
+      const cip = numero('cip');
+      const outros = numero('outros');
+      const valorPagoInformado = numero('valorPagoInformado');
+
+      const consumoCompensadoKwh = Math.min(consumoRedeKwh, injetadaKwh);
+      const excedenteInjetadoKwh = Math.max(0, injetadaKwh - consumoRedeKwh);
+      const consumoNaoCompensadoKwh = Math.max(0, consumoRedeKwh - injetadaKwh);
+
+      const valorAutoconsumo = autoconsumoKwh * tarifaCheia;
+      const energiaSemSolar = consumoTotalCasaKwh * tarifaCheia;
+      const contaSemSolar = energiaSemSolar + cip + outros;
+
+      const contaBrutaTotal = (consumoTotalCasaKwh * tarifaCheia) + cip + outros;
+
+      const valorConsumoCompensado = consumoCompensadoKwh * tarifaCheia;
+      const valorGd2 = consumoRedeKwh * tarifaGd2;
+      const valorBenefBruto = consumoRedeKwh * fatorBenefBruto;
+      const valorBenefLiquido = consumoRedeKwh * fatorBenefLiquido;
+
+      const sceeLiquido = valorBenefBruto + valorBenefLiquido;
+
+      const contaComSolarEstimada =
+        valorGd2 +
+        sceeLiquido +
+        cip +
+        outros;
+
+      const economiaReais = contaSemSolar - contaComSolarEstimada;
+      const economiaPerc = contaSemSolar > 0 ? (economiaReais / contaSemSolar) * 100 : 0;
+
+      const contaSemSolarSemCip = energiaSemSolar + outros;
+      const contaComSolarSemCip =
+        (consumoNaoCompensadoKwh * tarifaCheia) +
+        valorGd2 +
+        valorBenefBruto +
+        valorBenefLiquido +
+        outros;
+
+      const economiaSemCipReais = contaSemSolarSemCip - contaComSolarSemCip;
+      const economiaSemCipPerc = contaSemSolarSemCip > 0 ? (economiaSemCipReais / contaSemSolarSemCip) * 100 : 0;
+
+      setText('semSolar', moeda(contaSemSolar));
+      setText('comSolar', moeda(contaComSolarEstimada));
+      setText('economiaReais', moeda(economiaReais));
+      setText('economiaPerc', economiaPerc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%');
+      setText('contaBrutaTotal', moeda(contaBrutaTotal));
+      setText('economiaSemCipReais', moeda(economiaSemCipReais));
+      setText('economiaSemCipPerc', economiaSemCipPerc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%');
+
+      setHTML('semSolarDetail',
+        `Fórmula: consumo total da casa × tarifa cheia + CIP + outros<br>` +
+        `Parâmetros: ${consumoTotalCasaKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWh × ${tarifaCheia.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} + ${moeda(cip)} + ${moeda(outros)}`
+      );
+
+      setHTML('comSolarDetail',
+        `Fórmula: GD2 + SCEE líquido + CIP + outros<br>` +
+        `Parâmetros: GD2 ${moeda(valorGd2)}; SCEE líquido (${moeda(valorBenefBruto)} + ${moeda(valorBenefLiquido)}); CIP ${moeda(cip)}; outros ${moeda(outros)}`
+      );
+
+      setHTML('economiaReaisDetail',
+        `Fórmula: conta sem solar - conta com solar<br>` +
+        `Parâmetros: ${moeda(contaSemSolar)} - ${moeda(contaComSolarEstimada)}`
+      );
+
+      setHTML('economiaPercDetail',
+        `Fórmula: (economia ÷ conta sem solar) × 100<br>` +
+        `Parâmetros: ${moeda(economiaReais)} ÷ ${moeda(contaSemSolar)}`
+      );
+
+      setHTML('contaBrutaTotalDetail',
+        `Fórmula: consumo total da casa × tarifa cheia + CIP + outros<br>` +
+        `Parâmetros: ${consumoTotalCasaKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} kWh × ${tarifaCheia.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })} + ${moeda(cip)} + ${moeda(outros)}`
+      );
+
+      setHTML('economiaSemCipReaisDetail',
+        `Fórmula: conta sem solar sem CIP - conta com solar sem CIP<br>` +
+        `Parâmetros: ${moeda(contaSemSolarSemCip)} - ${moeda(contaComSolarSemCip)}`
+      );
+
+      setHTML('economiaSemCipPercDetail',
+        `Fórmula: (economia sem CIP ÷ conta sem solar sem CIP) × 100<br>` +
+        `Parâmetros: ${moeda(economiaSemCipReais)} ÷ ${moeda(contaSemSolarSemCip)}`
+      );
+
+      const tabelaItens = document.getElementById('tabelaItens');
+      tabelaItens.innerHTML = '';
+
+      addLinha(tabelaItens, 'Autoconsumo', 'geração total - energia injetada', autoconsumoKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh');
+      addLinha(tabelaItens, 'Consumo total da casa', 'consumo da rede + autoconsumo', consumoTotalCasaKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh');
+      addLinha(tabelaItens, 'Consumo compensado', 'mínimo entre consumo da rede e energia injetada', consumoCompensadoKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh');
+      addLinha(tabelaItens, 'Consumo não compensado', 'máximo entre 0 e consumo da rede - energia injetada', consumoNaoCompensadoKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh');
+      addLinha(tabelaItens, 'Excedente injetado', 'máximo entre 0 e energia injetada - consumo da rede', excedenteInjetadoKwh.toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + ' kWh');
+      addLinha(tabelaItens, 'Valor do autoconsumo', `${autoconsumoKwh.toLocaleString('pt-BR')} × ${tarifaCheia.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(valorAutoconsumo));
+      addLinha(tabelaItens, 'Valor do consumo compensado', `${consumoCompensadoKwh.toLocaleString('pt-BR')} × ${tarifaCheia.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(valorConsumoCompensado));
+      addLinha(tabelaItens, 'Parc. Inj. s/ Desc. - GD2', `${consumoRedeKwh.toLocaleString('pt-BR')} × ${tarifaGd2.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(valorGd2));
+      addLinha(tabelaItens, 'Benefício Tarifário Bruto SCEE', `${consumoRedeKwh.toLocaleString('pt-BR')} × ${fatorBenefBruto.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(valorBenefBruto));
+      addLinha(tabelaItens, 'Benefício Tarifário Líquido SCEE', `${consumoRedeKwh.toLocaleString('pt-BR')} × ${fatorBenefLiquido.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(valorBenefLiquido));
+
+      const tbody = document.getElementById('tabelaCalculo');
+      tbody.innerHTML = '';
+
+      addLinha(tbody, 'Energia sem solar', `${consumoTotalCasaKwh.toLocaleString('pt-BR')} × ${tarifaCheia.toLocaleString('pt-BR', { minimumFractionDigits: 4, maximumFractionDigits: 4 })}`, moeda(energiaSemSolar));
+      addLinha(tbody, 'Conta bruta total', `consumo total da casa × tarifa cheia + CIP + outros`, moeda(contaBrutaTotal));
+      addLinha(tbody, 'Conta sem solar', `energia sem solar + CIP + outros`, moeda(contaSemSolar));
+      addLinha(tbody, 'Conta com solar', `(consumo da rede × tarifa cheia) + GD2 + benefício bruto + benefício líquido + CIP + outros`, moeda(contaComSolarEstimada));
+      addLinha(tbody, 'Economia', `conta sem solar - conta com solar`, moeda(economiaReais));
+      addLinha(tbody, 'Economia percentual', `(economia / conta sem solar) × 100`, economiaPerc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%');
+      addLinha(tbody, 'Economia sem CIP', `(conta sem solar sem CIP) - (conta com solar sem CIP)`, moeda(economiaSemCipReais));
+      addLinha(tbody, 'Economia percentual sem CIP', `(economia sem CIP / conta sem solar sem CIP) × 100`, economiaSemCipPerc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%');
+
+      const comparacao = document.getElementById('comparacao');
+      if (valorPagoInformado > 0) {
+        const diferenca = contaComSolarEstimada - valorPagoInformado;
+        const absDif = Math.abs(diferenca);
+        const sentido = diferenca > 0 ? 'acima' : (diferenca < 0 ? 'abaixo' : 'igual a');
+
+        comparacao.innerHTML =
+          `<strong>Comparação com o valor informado:</strong><br>
+           Conta estimada com solar: <strong>${moeda(contaComSolarEstimada)}</strong>.<br>
+           Valor informado na fatura: <strong>${moeda(valorPagoInformado)}</strong>.<br>
+           A estimativa ficou <strong>${sentido}</strong> em <strong>${moeda(absDif)}</strong>.`;
+      } else {
+        comparacao.innerHTML =
+          `A conta com solar foi estimada em <strong>${moeda(contaComSolarEstimada)}</strong>, com economia de <strong>${economiaPerc.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%</strong>.`;
+      }
+    }
+
+    function limparCampos() {
+      ['geracaoTotalKwh','injetadaKwh','autoconsumoKwh','consumoRedeKwh','consumoTotalCasaKwh','tarifaCheia','tarifaGd2','fatorBenefBruto','fatorBenefLiquido','cip','outros','valorPagoInformado']
+        .forEach(id => document.getElementById(id).value = '');
+
+      setText('semSolar', 'R$ 0,00');
+      setText('comSolar', 'R$ 0,00');
+      setText('economiaReais', 'R$ 0,00');
+      setText('economiaPerc', '0,00%');
+      setText('contaBrutaTotal', 'R$ 0,00');
+      setText('economiaSemCipReais', 'R$ 0,00');
+      setText('economiaSemCipPerc', '0,00%');
+
+      ['semSolarDetail','comSolarDetail','economiaReaisDetail','economiaPercDetail','contaBrutaTotalDetail','economiaSemCipReaisDetail','economiaSemCipPercDetail']
+        .forEach(id => setHTML(id, 'Fórmula e parâmetros aparecerão aqui.'));
+
+      document.getElementById('tabelaItens').innerHTML = '';
+      document.getElementById('tabelaCalculo').innerHTML = '';
+      document.getElementById('comparacao').innerHTML = 'Campos limpos.';
+    }
+
+    function carregarExemplo() {
+      document.getElementById('geracaoTotalKwh').value = '700';
+      document.getElementById('injetadaKwh').value = '521';
+      document.getElementById('consumoRedeKwh').value = '521';
+      document.getElementById('tarifaCheia').value = '0.8381';
+      document.getElementById('tarifaGd2').value = '0.2741';
+      document.getElementById('fatorBenefBruto').value = '0.5506';
+      document.getElementById('fatorBenefLiquido').value = '-0.4016';
+      document.getElementById('cip').value = '28.67';
+      document.getElementById('outros').value = '0';
+      document.getElementById('valorPagoInformado').value = '249.14';
+      atualizarCamposDerivados();
+      calcular();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.getElementById('geracaoTotalKwh').addEventListener('input', atualizarCamposDerivados);
+      document.getElementById('injetadaKwh').addEventListener('input', atualizarCamposDerivados);
+      document.getElementById('consumoRedeKwh').addEventListener('input', atualizarCamposDerivados);
+      carregarExemplo();
+    });
+  </script>
+</body>
+</html>
